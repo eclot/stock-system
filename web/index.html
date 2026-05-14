@@ -73,6 +73,7 @@
         }
         table {
             width: 100%; border-collapse: collapse; font-size: 12px; min-width: 600px;
+            table-layout: fixed;
         }
         th {
             background: #161B22; padding: 10px 10px;
@@ -1007,7 +1008,7 @@ async function loadDashboard() {
         html += '</div>';
         
         html += '<h3 style="margin:16px 0 10px;font-size:14px;">🏆 TOP 10</h3>';
-        html += '<div class="table-wrap"><table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>评分</th><th>现价</th><th>信号</th></tr></thead><tbody>';
+        html += '<div class="table-wrap"><table><colgroup><col style="width:8%"><col style="width:15%"><col style="width:22%"><col style="width:15%"><col style="width:15%"><col style="width:25%"></colgroup><thead><tr><th>#</th><th>代码</th><th>名称</th><th>评分</th><th>现价</th><th>信号</th></tr></thead><tbody>';
         data.results.slice(0, 10).forEach((r, i) => {
             const cls = r.score >= 70 ? 'score-high' : r.score >= 60 ? 'score-mid' : 'score-low';
             html += `<tr onclick="showPage('analysis');document.getElementById('stockSearch').value='${r.symbol}';searchStock();">
@@ -1062,14 +1063,17 @@ async function loadWatchlist() {
             <span style="color:#8B949E;">共 ${data.count} 只</span>
             <span style="color:#8B949E;font-size:11px;" id="wlUpdateTime"></span>
         </div>
-            <div class="table-wrap"><table><thead><tr>
-                <th>代码</th><th>名称</th><th>现价</th><th>涨跌幅</th><th>操作</th>
+            <div class="table-wrap"><table>
+                <colgroup><col style="width:12%"><col style="width:18%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:24%"></colgroup>
+                <thead><tr>
+                <th>代码</th><th>名称</th><th>行业</th><th>现价</th><th>涨跌幅</th><th>操作</th>
             </tr></thead><tbody id="wlTbody">`;
         data.items.forEach(item => {
             const color = (item.change_pct || 0) >= 0 ? '#F85149' : '#3FB950';
             html += `<tr data-symbol="${item.symbol}">
                 <td onclick="showPage('analysis');document.getElementById('stockSearch').value='${item.symbol}';searchStock();" style="cursor:pointer;">${item.symbol}</td>
                 <td onclick="showPage('analysis');document.getElementById('stockSearch').value='${item.symbol}';searchStock();" style="cursor:pointer;">${item.name}</td>
+                <td style="color:#8B949E;font-size:11px;">${item.industry || ''}</td>
                 <td class="wl-price">${(item.price || 0).toFixed(2)}</td>
                 <td class="wl-chg" style="color:${color}">${(item.change_pct || 0).toFixed(2)}%</td>
                 <td><button onclick="removeFromWatchlist('${item.symbol}',event)" style="background:transparent;color:#F85149;border:1px solid #F85149;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">删除</button></td>
@@ -1153,8 +1157,10 @@ async function loadPortfolio() {
         // ── 持仓 ──
         if (pf.holdings && pf.holdings.length > 0) {
             html += `<h3 style="margin:16px 0 10px;font-size:14px;">持仓明细 <span style="color:#8B949E;font-size:11px;">${pf.holdings.length}只</span> <span id="pfUpdateTime" style="color:#8B949E;font-size:10px;font-weight:normal;"></span></h3>
-                <div class="table-wrap"><table><thead><tr>
-                    <th>代码</th><th>名称</th><th>持仓</th><th>成本</th><th>现价</th><th>市值</th><th>盈亏</th>
+                <div class="table-wrap"><table>
+                <colgroup><col style="width:10%"><col style="width:14%"><col style="width:14%"><col style="width:10%"><col style="width:10%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+                <thead><tr>
+                    <th>代码</th><th>名称</th><th>行业</th><th>持仓</th><th>成本</th><th>现价</th><th>市值</th><th>盈亏</th>
                 </tr></thead><tbody>`;
             pf.holdings.forEach(h => {
                 const profitColor = h.profit >= 0 ? '#F85149' : '#3FB950';
@@ -1162,6 +1168,7 @@ async function loadPortfolio() {
                 html += `<tr data-symbol="${h.symbol}" data-shares="${h.shares}" data-avg="${h.avg_price}">
                     <td onclick="${onclick}" style="cursor:pointer;color:#8B949E;font-size:11px;">${h.symbol}</td>
                     <td onclick="${onclick}" style="cursor:pointer;font-weight:500;">${h.name || h.symbol.replace(/^(sh|sz)/,'')}</td>
+                    <td style="color:#8B949E;font-size:11px;">${h.industry || ''}</td>
                     <td>${h.shares}</td>
                     <td class="pf-avg">${h.avg_price}</td>
                     <td class="pf-price">${h.current_price}</td>

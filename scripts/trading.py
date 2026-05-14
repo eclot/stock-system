@@ -97,9 +97,17 @@ def portfolio_status(current_prices: dict = None) -> dict:
         profit_pct = (profit / cost * 100) if cost > 0 else 0
         total_market_value += market_value
         
+        # 行业归属
+        try:
+            from scripts.data_loader import get_industry, load_industry_mapping
+            _m = load_industry_mapping()
+            industry = get_industry(symbol, _m) if _m is not None else None
+        except:
+            industry = None
         holdings_detail.append({
             "symbol": symbol,
             "name": info.get("name", symbol),
+            "industry": industry,
             "shares": info["shares"],
             "avg_price": round(info["avg_price"], 2),
             "current_price": round(price, 2),

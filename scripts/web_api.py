@@ -564,6 +564,13 @@ async def api_watchlist():
             match = info[info["symbol"] == sym]
             if len(match) > 0:
                 item["name"] = match.iloc[0].get("code_name", item.get("name", sym))
+        # 行业归属
+        try:
+            from scripts.data_loader import get_industry, load_industry_mapping
+            _mapping = load_industry_mapping()
+            item["industry"] = get_industry(sym, _mapping) if _mapping is not None else None
+        except:
+            item["industry"] = None
     
     return {"items": wl, "count": len(wl)}
 
