@@ -472,15 +472,17 @@ function switchMode(mode) {
             '<th title="多因子加权综合评分(0-100)。增强版:技术30%+价量25%+行业20%+热点15%+资金10%。≥70买入,60-69关注,<60弱势">评分</th><th>现价</th>' +
             '<th title="技术面综合评分(0-10)。内部:均线50%+RSI20%+量比15%+MACD15%，值越高越好">技术</th>' +
             '<th title="价量衍生综合评分(0-10)。四因子:乖离率35%+趋势强度35%+波动率15%+换手率15%，值越高越好">价量</th>' +
-            '<th title="14日相对强弱指标(0-100)。>70超买区(可能回调),<30超卖区(可能反弹),30-70正常区间">RSI</th>' +
-            '<th title="strong_buy:评分≥70+共振=强烈买入; trend_broken:趋势破位=建议卖出; watch_buy:评分60-69=关注待机">信号</th><th></th>';
+            '<th title="行业板块动量评分(0-10)。板块5日/20日涨幅排名综合。>7强势板块,4-7中性,<4弱势">行业</th>' +
+            '<th title="市场热点评分(0-10)。板块资金集中度+情绪热度。>7热点板块,4-7中性,<4冷门">热点</th>' +
+            '<th title="资金流评分(0-10)。北向资金+大单流向。>7资金关注,4-7中性,<4资金流出">资金</th>' +
+            '<th title="strong_buy:评分≥70且价格站上20日均线→强烈买入; trend_broken:价格跌破60日均线→建议卖出; watch_buy:评分60-69且价格站上均线→关注待机">信号</th><th></th>';
     } else {
         thead.innerHTML = '<th>#</th><th>代码</th><th>名称</th><th>行业</th>' +
             '<th title="多因子加权综合评分(0-100)。经典版:技术40%+基本面40%+资金20%。≥70买入,60-69关注,<60弱势">评分</th><th>现价</th>' +
             '<th title="均线趋势评分(0-10)。MA5>MA10>MA20>MA60多头排列=高分。>7趋势佳,4-7中性,<4趋势弱">趋势</th>' +
             '<th title="14日相对强弱指标(0-100)。>70超买区(可能回调),<30超卖区(可能反弹),30-70正常区间">RSI</th>' +
             '<th title="量比=成交量÷5日均量。>1.5放量活跃,0.7-1.5正常,<0.7缩量。放量突破=确认信号">量比</th>' +
-            '<th title="strong_buy:评分≥70+共振=强烈买入; trend_broken:趋势破位=建议卖出; watch_buy:评分60-69=关注待机">信号</th><th></th>';
+            '<th title="strong_buy:评分≥70且价格站上20日均线→强烈买入; trend_broken:价格跌破60日均线→建议卖出; watch_buy:评分60-69且价格站上均线→关注待机">信号</th><th></th>';
     }
 
     // 重新加载数据
@@ -522,7 +524,7 @@ async function loadByIndustry() {
         const data = await res.json();
         
         if (data.error) {
-            tbody.innerHTML = `<tr><td colspan="8" style="color:#F85149;padding:20px;text-align:center;">${data.error}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="13" style="color:#F85149;padding:20px;text-align:center;">${data.error}</td></tr>`;
             infoEl.textContent = '';
             return;
         }
@@ -558,6 +560,16 @@ ${typeof r.detail_technical!=='undefined'
                 <td title="价量衍生${r.detail_price_derived}/10
 乖离率35%+趋势强度35%+波动率15%+换手率15%
 值越高量价关系越好">${(r.detail_price_derived || 0).toFixed(1)}</td>
+                <td title="行业动量${r.detail_industry}/10
+板块5日/20日涨幅排名综合
+>7强势, 4-7中性, <4弱势
+板块: ${r.industry||'—'}">${(r.detail_industry || 0).toFixed(1)}</td>
+                <td title="市场热点${r.detail_hotspot}/10
+板块资金集中度+情绪热度
+>7热点, 4-7中性, <4冷门">${(r.detail_hotspot || 0).toFixed(1)}</td>
+                <td title="资金流${r.detail_fund_flow}/10
+北向资金+大单流向综合评估
+>7资金关注, 4-7中性, <4资金流出">${(r.detail_fund_flow || 0).toFixed(1)}</td>
                 ` : `
                 <td title="趋势评分${(r.ma_trend||0).toFixed(1)}/10
 均线排列评分。>7多头趋势佳
@@ -570,13 +582,13 @@ ${r.rsi>70?'🔴超买区，注意回调风险':r.rsi<30?'🟢超卖区，可能
 成交量÷5日均量
 ${(r.volume_ratio||0)>1.5?'🟢放量活跃':(r.volume_ratio||0)<0.7?'🔴缩量低迷':'🟡正常'}">${(r.volume_ratio || 0).toFixed(2)}</td>
                 `}
-                <td title="${sign.includes('strong_buy')?'🟢 strong_buy:评分≥70+共振=强烈买入\n':''}${sign.includes('trend_broken')?'🔴 trend_broken:趋势破位=建议卖出\n':''}${sign.includes('watch_buy')?'🟡 watch_buy:评分60-69=关注待机':''}">${sig}</td>
+                <td title="${sign.includes('strong_buy')?'🟢 strong_buy:评分≥70且价格站上20日均线\n强烈买入信号':''}${sign.includes('trend_broken')?'🔴 trend_broken:价格跌破60日均线\n趋势破位，建议卖出':''}${sign.includes('watch_buy')?'🟡 watch_buy:评分60-69且价格站上均线\n关注待机':''}${!sign?'— 无信号':''}">${sig}</td>
                 <td><span class="wl-add" onclick="event.stopPropagation();quickAddWL('${r.symbol}','${r.name}')">+自选</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="10" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
     }
     industryLoading = false;
 }
@@ -693,14 +705,14 @@ async function refreshCache() {
 // ── 扫描 ──
 async function loadScan() {
     const tbody = document.getElementById('scanResults');
-    tbody.innerHTML = '<tr><td colspan="10" class="loading">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="loading">加载中...</td></tr>';
     try {
         const res = await fetch(`/api/scan?top_n=50&mode=${currentMode}`);
         const data = await res.json();
         
         // 正在扫描中
         if (data.scanning) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#8B949E;padding:20px;">🔍 全市场扫描进行中（约1-2分钟），请稍候...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#8B949E;padding:20px;">🔍 全市场扫描进行中（约1-2分钟），请稍候...</td></tr>';
             document.getElementById('cachedAt').textContent = '⏳ 扫描中...';
             document.getElementById('scanStats').textContent = '⏳ 等待扫描完成';
             // 每5秒检查状态
@@ -749,6 +761,16 @@ ${typeof r.detail_technical!=='undefined'
                 <td title="价量衍生${r.detail_price_derived}/10
 乖离率35%+趋势强度35%+波动率15%+换手率15%
 值越高量价关系越好">${(r.detail_price_derived || 0).toFixed(1)}</td>
+                <td title="行业动量${r.detail_industry}/10
+板块5日/20日涨幅排名综合
+>7强势, 4-7中性, <4弱势
+板块: ${r.industry||'—'}">${(r.detail_industry || 0).toFixed(1)}</td>
+                <td title="市场热点${r.detail_hotspot}/10
+板块资金集中度+情绪热度
+>7热点, 4-7中性, <4冷门">${(r.detail_hotspot || 0).toFixed(1)}</td>
+                <td title="资金流${r.detail_fund_flow}/10
+北向资金+大单流向综合评估
+>7资金关注, 4-7中性, <4资金流出">${(r.detail_fund_flow || 0).toFixed(1)}</td>
                 ` : `
                 <td title="趋势评分${(r.ma_trend||0).toFixed(1)}/10
 均线排列评分。>7多头趋势佳
@@ -762,13 +784,13 @@ ${r.rsi>70?'🔴超买区，注意回调风险':r.rsi<30?'🟢超卖区，可能
 成交量÷5日均量
 ${(r.volume_ratio||0)>1.5?'🟢放量活跃':(r.volume_ratio||0)<0.7?'🔴缩量低迷':'🟡正常'}">${(r.volume_ratio || 0).toFixed(2)}</td>
                 `}
-                <td title="${sign.includes('strong_buy')?'🟢 strong_buy：评分≥70且指标共振\n多因子同时看多，强烈买入信号':''}${sign.includes('trend_broken')?'🔴 trend_broken：趋势破位\n均线走坏或评分骤降，建议卖出':''}${sign.includes('watch_buy')?'🟡 watch_buy：评分60-69\n部分指标向好，关注待机':''}${!sign?'— 无信号':''}">${sig}</td>
+                <td title="${sign.includes('strong_buy')?'🟢 strong_buy：评分≥70且价格站上20日均线\n强烈买入信号':''}${sign.includes('trend_broken')?'🔴 trend_broken：价格跌破60日均线\n趋势破位，建议卖出':''}${sign.includes('watch_buy')?'🟡 watch_buy：评分60-69且价格站上均线\n部分指标向好，关注待机':''}${!sign?'— 无信号':''}">${sig}</td>
                 <td><span class="wl-add" onclick="event.stopPropagation();quickAddWL('${r.symbol}','${r.name}')">+自选</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="10" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
     }
 }
 
