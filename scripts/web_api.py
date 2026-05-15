@@ -831,7 +831,8 @@ async def financial_stocks(
     """财务数据排序列表"""
     try:
         from scripts.financial_data import load_financial_data
-        from scripts.data_loader import load_industry_mapping, get_industry, load_all_stocks_info
+        from scripts.data_loader import load_industry_mapping, get_industry
+        from scripts.strategy_engine import load_all_stocks_info
 
         df = load_financial_data()
         if df is None or len(df) == 0:
@@ -861,11 +862,13 @@ async def financial_stocks(
                 "gross_margin": row.get("gross_margin"),
                 "net_profit_margin": row.get("net_profit_margin"),
                 "net_profit_growth": row.get("net_profit_growth"),
+                "revenue_growth": row.get("revenue_growth"),
+                "profit_growth": row.get("profit_growth"),
                 "liability_to_asset": row.get("liability_to_asset"),
                 "current_ratio": row.get("current_ratio"),
             }
-            if mapping:
-                entry["industry"] = get_industry(symbol, mapping) or ""
+            if mapping is not None:
+                entry["industry"] = get_industry(row["symbol"], mapping) or ""
             else:
                 entry["industry"] = ""
             records.append(entry)

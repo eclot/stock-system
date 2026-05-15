@@ -166,8 +166,12 @@ def fetch_financial_baostock(symbol: str, year: int = None, quarter: int = 1) ->
 
 
 def reload_financial_batch(symbols: list = None, max_workers: int = 10,
-                           year: int = None, quarter: int = 1) -> pd.DataFrame:
-    """批量拉取财务数据（全量重新下载）"""
+                           year: int = None, quarter: int = 1,
+                           append: bool = False) -> pd.DataFrame:
+    """批量拉取财务数据（全量重新下载）
+    
+    append=True: 追加模式，与现有数据合并后保存
+    """
     import baostock as bs
 
     if symbols is None:
@@ -208,6 +212,11 @@ def reload_financial_batch(symbols: list = None, max_workers: int = 10,
 
             if (i + 1) % 500 == 0:
                 logger.info(f"  进度: {i+1}/{total} (失败{errors})")
+                # 每500只保存一次检查点
+                checkpoint_df = pd.DataFrame(results)
+                ckpt_path = FINANCIAL_PATH.replace(".parquet", f"_ckpt_{i+1}.parquet")
+                checkpoint_df.to_parquet(ckpt_path, index=False)
+                logger.info(f"  检查点已保存: {ckpt_path}")
 
     bs.logout()
 
@@ -238,6 +247,24 @@ def reload_financial_batch(symbols: list = None, max_workers: int = 10,
 
     # ── 保存 ──
     os.makedirs(FINANCIAL_DIR, exist_ok=True)
+    
+    if append and os.path.exists(FINANCIAL_PATH):
+        try:
+            existing = pd.read_parquet(FINANCIAL_PATH)
+            logger.info(f"合并模式: 现有{len(existing)}条 + 新增{len(df)}条")
+            # 用symbol+year+quarter做去重键，新数据覆盖旧数据
+            if "year" in existing.columns and "quarter" in existing.columns \
+               and "year" in df.columns and "quarter" in df.columns:
+                merge_keys = ["symbol", "year", "quarter"]
+            else:
+                merge_keys = ["symbol"]
+            combined = pd.concat([existing, df], ignore_index=True)
+            combined = combined.drop_duplicates(subset=merge_keys, keep="last")
+            df = combined
+            logger.info(f"合并后: {len(df)}条")
+        except Exception as e:
+            logger.warning(f"合并失败，直接覆盖: {e}")
+    
     df.to_parquet(FINANCIAL_PATH, index=False)
     logger.info(f"财务数据已保存: {FINANCIAL_PATH} ({len(df)}行, {len(df.columns)}列)")
     logger.info(f"  成功: {len(df) - errors}, 失败: {errors}")
@@ -434,8 +461,21 @@ if __name__ == "__main__":
     if "--reload" in sys.argv:
         print("=== 全量拉取财务数据 ===")
         symbols = get_available_symbols()
-        print(f"共 {len(symbols)} 只股票")
-        df = reload_financial_batch(symbols, max_workers=10)
+        
+        # 支持分批: --start 0 --end 500
+        start = 0
+        end = len(symbols)
+        for i, arg in enumerate(sys.argv):
+            if arg == "--start" and i+1 < len(sys.argv):
+                start = int(sys.argv[i+1])
+            if arg == "--end" and i+1 < len(sys.argv):
+                end = int(sys.argv[i+1])
+        
+        batch = symbols[start:end]
+        print(f"共 {len(symbols)} 只, 本次分批 {start}-{end} ({len(batch)}只)")
+        # 非首批使用追加模式合并
+        is_first = (start == 0)
+        df = reload_financial_batch(batch, max_workers=10, append=not is_first)
         if len(df) > 0:
             print(f"\n字段: {list(df.columns)}")
             print(df[["symbol", "pe", "roe", "gross_margin", "liability_to_asset",

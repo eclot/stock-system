@@ -690,6 +690,7 @@ async function loadFinancial() {
             { key: 'roe', label: 'ROE(高→低)' },
             { key: 'gross_margin', label: '毛利率(高→低)' },
             { key: 'net_profit_growth', label: '净利增速(高→低)' },
+            { key: 'revenue_growth', label: '营收增速(高→低)' },
             { key: 'liability_to_asset', label: '负债率(低→高)' },
             { key: 'eps_ttm', label: 'EPS(高→低)' },
         ];
@@ -713,6 +714,7 @@ async function loadFinancial() {
                 '<th title="毛利率 = (营收-营业成本)/营收。反映产品定价能力">毛利率(%)</th>' +
                 '<th title="净利率 = 净利润/营收。反映整体盈利效率">净利率(%)</th>' +
                 '<th title="净利润同比增长率。越高说明成长性越好">净利增速(%)</th>' +
+                '<th title="营业收入同比增长率。反映业务扩张速度">营收增速(%)</th>' +
                 '<th title="资产负债率 = 总负债/总资产。越低财务风险越小">负债率(%)</th>' +
                 '<th title="流动比率 = 流动资产/流动负债。>2较安全">流动比率</th>' +
                 '</tr></thead><tbody>';
@@ -734,6 +736,7 @@ async function loadFinancial() {
                     <td style="color:${r.gross_margin >= 30 ? '#3FB950' : '#E6C384'}">${fmt(r.gross_margin)}</td>
                     <td>${fmt(r.net_profit_margin)}</td>
                     <td style="color:${r.net_profit_growth >= 20 ? '#3FB950' : r.net_profit_growth < 0 ? '#F85149' : '#E6C384'}">${fmt(r.net_profit_growth)}</td>
+                    <td style="color:${r.revenue_growth >= 20 ? '#3FB950' : r.revenue_growth < 0 ? '#F85149' : '#E6C384'}">${fmt(r.revenue_growth)}</td>
                     <td style="color:${r.liability_to_asset <= 50 ? '#3FB950' : r.liability_to_asset <= 70 ? '#E6C384' : '#F85149'}">${fmt(r.liability_to_asset)}</td>
                     <td style="color:${r.current_ratio >= 2 ? '#3FB950' : r.current_ratio >= 1 ? '#E6C384' : '#F85149'}">${fmt(r.current_ratio)}</td>
                 </tr>`;
@@ -753,7 +756,7 @@ function switchFinancialSort(key) {
     } else {
         financialSortBy = key;
         // 默认排序方向
-        const descFields = ['roe', 'gross_margin', 'net_profit_growth', 'eps_ttm'];
+        const descFields = ['roe', 'gross_margin', 'net_profit_growth', 'revenue_growth', 'eps_ttm'];
         financialAsc = !descFields.includes(key);
     }
     document.querySelectorAll('#page-financial .period-btn').forEach(b => {
