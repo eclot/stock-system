@@ -302,7 +302,11 @@
                 <table>
                     <thead><tr>
                         <th>#</th><th>代码</th><th>名称</th><th>行业</th>
-                        <th>评分</th><th>现价</th><th>趋势</th><th>RSI</th><th>信号</th><th></th>
+                        <th title="多因子加权综合评分(0-100)。增强版:技术30%+价量25%+行业20%+热点15%+资金10%。≥70买入,60-69关注,<60弱势">评分</th><th>现价</th>
+                        <th title="均线趋势评分(0-10)。MA5>MA10>MA20>MA60多头排列=高分。>7趋势佳,4-7中性,<4趋势弱">趋势</th>
+                        <th title="14日相对强弱指标(0-100)。>70超买区(可能回调),<30超卖区(可能反弹),30-70正常区间">RSI</th>
+                        <th title="量比=成交量÷5日均量。>1.5放量活跃,0.7-1.5正常,<0.7缩量。放量突破=确认信号">量比</th>
+                        <th title="strong_buy:评分≥70+共振=强烈买入; trend_broken:趋势破位=建议卖出; watch_buy:评分60-69=关注待机">信号</th><th></th>
                     </tr></thead>
                     <tbody id="scanResults"></tbody>
                 </table>
@@ -523,17 +527,27 @@ async function loadByIndustry() {
                 <td>${r.symbol}</td>
                 <td>${r.name}</td>
                 <td style="color:#8B949E;font-size:11px;">${r.industry || '-'}</td>
-                <td class="${cls}">${(r.score || 0).toFixed(1)}</td>
+                <td class="${cls}" title="综合评分${r.score}分${r.score>=70?' 🟢建议买入':r.score>=60?' 🟡关注':'\n🔴弱势'}
+评分越高越好
+增强:技术${typeof r.detail_technical!=='undefined'?r.detail_technical+'/10':'—'} | 价量${typeof r.detail_price_derived!=='undefined'?r.detail_price_derived+'/10':'—'} | 行业${typeof r.detail_industry!=='undefined'?r.detail_industry+'/10':'—'} | 热点${typeof r.detail_hotspot!=='undefined'?r.detail_hotspot+'/10':'—'}">${(r.score || 0).toFixed(1)}</td>
                 <td>${(r.price || 0).toFixed(2)}</td>
-                <td>${(r.ma_trend || 0).toFixed(1)}</td>
-                <td>${(r.rsi || 0).toFixed(1)}</td>
-                <td>${sig}</td>
+                <td title="趋势评分${(r.ma_trend||0).toFixed(1)}/10
+均线排列评分。>7多头趋势佳
+4-7趋势中性, <4趋势偏弱">${(r.ma_trend || 0).toFixed(1)}</td>
+                <td title="RSI=${r.rsi.toFixed(1)}
+14日相对强弱指标(0-100)
+${r.rsi>70?'🔴超买区，注意回调风险':r.rsi<30?'🟢超卖区，可能反弹':'🟡正常区间'}
+区间: >70超买 | 30-70正常 | <30超卖">${(r.rsi || 0).toFixed(1)}</td>
+                <td title="量比=${(r.volume_ratio||0).toFixed(2)}
+成交量÷5日均量
+${(r.volume_ratio||0)>1.5?'🟢放量活跃':(r.volume_ratio||0)<0.7?'🔴缩量低迷':'🟡正常'}">${(r.volume_ratio || 0).toFixed(2)}</td>
+                <td title="${sign.includes('strong_buy')?'🟢 strong_buy:评分≥70+共振=强烈买入\n':''}${sign.includes('trend_broken')?'🔴 trend_broken:趋势破位=建议卖出\n':''}${sign.includes('watch_buy')?'🟡 watch_buy:评分60-69=关注待机':''}">${sig}</td>
                 <td><span class="wl-add" onclick="event.stopPropagation();quickAddWL('${r.symbol}','${r.name}')">+自选</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="9" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
     }
     industryLoading = false;
 }
@@ -650,14 +664,14 @@ async function refreshCache() {
 // ── 扫描 ──
 async function loadScan() {
     const tbody = document.getElementById('scanResults');
-    tbody.innerHTML = '<tr><td colspan="9" class="loading">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">加载中...</td></tr>';
     try {
         const res = await fetch(`/api/scan?top_n=50&mode=${currentMode}`);
         const data = await res.json();
         
         // 正在扫描中
         if (data.scanning) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#8B949E;padding:20px;">🔍 全市场扫描进行中（约1-2分钟），请稍候...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#8B949E;padding:20px;">🔍 全市场扫描进行中（约1-2分钟），请稍候...</td></tr>';
             document.getElementById('cachedAt').textContent = '⏳ 扫描中...';
             document.getElementById('scanStats').textContent = '⏳ 等待扫描完成';
             // 每5秒检查状态
@@ -693,17 +707,28 @@ async function loadScan() {
                 <td>${r.symbol}</td>
                 <td>${r.name}</td>
                 <td style="color:#8B949E;font-size:11px;">${r.industry || '-'}</td>
-                <td class="${cls}">${r.score.toFixed(1)}</td>
+                <td class="${cls}" title="综合评分${r.score}分${r.score>=70?' 🟢建议买入':r.score>=60?' 🟡关注':'\n🔴弱势'}
+评分越高越好
+增强:技术${typeof r.detail_technical!=='undefined'?r.detail_technical+'/10':'—'} | 价量${typeof r.detail_price_derived!=='undefined'?r.detail_price_derived+'/10':'—'} | 行业${typeof r.detail_industry!=='undefined'?r.detail_industry+'/10':'—'} | 热点${typeof r.detail_hotspot!=='undefined'?r.detail_hotspot+'/10':'—'}">${r.score.toFixed(1)}</td>
                 <td>${(r.price || 0).toFixed(2)}</td>
-                <td>${(r.ma_trend || 0).toFixed(1)}</td>
-                <td>${(r.rsi || 0).toFixed(1)}</td>
-                <td>${sig}</td>
+                <td title="趋势评分${(r.ma_trend||0).toFixed(1)}/10
+均线排列评分。>7多头趋势佳
+4-7趋势中性, <4趋势偏弱
+MA5=${typeof r.ma5!=='undefined'?r.ma5.toFixed(2):'—'} | MA10=${typeof r.ma10!=='undefined'?r.ma10.toFixed(2):'—'} | MA20=${typeof r.ma20!=='undefined'?r.ma20.toFixed(2):'—'}">${(r.ma_trend || 0).toFixed(1)}</td>
+                <td title="RSI=${r.rsi.toFixed(1)}
+14日相对强弱指标(0-100)
+${r.rsi>70?'🔴超买区，注意回调风险':r.rsi<30?'🟢超卖区，可能反弹':'🟡正常区间'}
+区间: >70超买 | 30-70正常 | <30超卖">${(r.rsi || 0).toFixed(1)}</td>
+                <td title="量比=${(r.volume_ratio||0).toFixed(2)}
+成交量÷5日均量
+${(r.volume_ratio||0)>1.5?'🟢放量活跃':(r.volume_ratio||0)<0.7?'🔴缩量低迷':'🟡正常'}">${(r.volume_ratio || 0).toFixed(2)}</td>
+                <td title="${sign.includes('strong_buy')?'🟢 strong_buy：评分≥70且指标共振\n多因子同时看多，强烈买入信号':''}${sign.includes('trend_broken')?'🔴 trend_broken：趋势破位\n均线走坏或评分骤降，建议卖出':''}${sign.includes('watch_buy')?'🟡 watch_buy：评分60-69\n部分指标向好，关注待机':''}${!sign?'— 无信号':''}">${sig}</td>
                 <td><span class="wl-add" onclick="event.stopPropagation();quickAddWL('${r.symbol}','${r.name}')">+自选</span></td>
             `;
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="9" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
     }
 }
 
