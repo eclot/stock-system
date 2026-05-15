@@ -709,7 +709,9 @@ async function loadScan() {
                 <td style="color:#8B949E;font-size:11px;">${r.industry || '-'}</td>
                 <td class="${cls}" title="综合评分${r.score}分${r.score>=70?' 🟢建议买入':r.score>=60?' 🟡关注':'\n🔴弱势'}
 评分越高越好
-增强:技术${typeof r.detail_technical!=='undefined'?r.detail_technical+'/10':'—'} | 价量${typeof r.detail_price_derived!=='undefined'?r.detail_price_derived+'/10':'—'} | 行业${typeof r.detail_industry!=='undefined'?r.detail_industry+'/10':'—'} | 热点${typeof r.detail_hotspot!=='undefined'?r.detail_hotspot+'/10':'—'}">${r.score.toFixed(1)}</td>
+${typeof r.detail_technical!=='undefined'
+  ?'增强版: 技术30%+价量25%+行业20%+热点15%+资金10%\n技术'+r.detail_technical+'/10 | 价量'+r.detail_price_derived+'/10 | 行业'+r.detail_industry+'/10 | 热点'+r.detail_hotspot+'/10 | 资金'+r.detail_fund_flow+'/10'
+  :'经典版: 技术(均线+RSI+量比+MACD)40%+基本面(PE+ROE+营收)40%+资金(北向)20%'}">${r.score.toFixed(1)}</td>
                 <td>${(r.price || 0).toFixed(2)}</td>
                 <td title="趋势评分${(r.ma_trend||0).toFixed(1)}/10
 均线排列评分。>7多头趋势佳
