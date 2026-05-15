@@ -156,14 +156,14 @@ class ScoringEngine:
     SCORING_MODE_ENHANCED = "enhanced"
     
     WEIGHTS = {
-        "pe_percentile": 0.15,    # PE历史分位（低=好）
-        "roe": 0.15,              # ROE（高=好）
-        "revenue_growth": 0.10,   # 营收增速（高=好）
-        "ma_trend": 0.20,         # 均线排列（多头=好）
-        "rsi_position": 0.10,     # RSI位置（中性偏强=好）
-        "volume_ratio": 0.10,     # 成交量比（放量=好）
-        "north_flow": 0.10,       # 北向资金（可选）
-        "macd_signal": 0.10,      # MACD信号
+        "pe_percentile": 0.16,    # PE历史分位（低=好）基本面40%×40%
+        "roe": 0.12,              # ROE（高=好）基本面40%×30%
+        "revenue_growth": 0.12,   # 营收增速（高=好）基本面40%×30%
+        "ma_trend": 0.24,         # 均线排列（多头=好）技术面40%×60%
+        "rsi_position": 0.06,     # RSI位置（中性偏强=好）技术面40%×15%
+        "volume_ratio": 0.06,     # 成交量比（放量=好）技术面40%×15%
+        "north_flow": 0.20,       # 北向资金 资金面20%
+        "macd_signal": 0.04,      # MACD信号 技术面40%×10%
     }
     
     @classmethod
@@ -218,7 +218,11 @@ class ScoringEngine:
         # ── 营收增速 ──
         rev_score = cls._score_revenue_growth(financial or {})
         details["revenue_growth"] = {"score": rev_score, "weight": cls.WEIGHTS["revenue_growth"]}
-        
+
+        # ── 北向资金 ──
+        north_score = cls._score_north_flow(financial or {})
+        details["north_flow"] = {"score": north_score, "weight": cls.WEIGHTS["north_flow"]}
+
         # 综合评分 (0~100)
         total = sum(v["score"] * v["weight"] for v in details.values()) * 10
         
@@ -383,9 +387,14 @@ class ScoringEngine:
             return 4.0
         else:
             return 1.0
-    
+
     @staticmethod
-    def _generate_signals(latest: dict, df: pd.DataFrame, 
+    def _score_north_flow(financial: dict) -> float:
+        """北向资金评分 (0~10) — 预留占位，待接入北向数据"""
+        return 5.0
+
+    @staticmethod
+    def _generate_signals(latest: dict, df: pd.DataFrame,
                           total_score: float, details: dict) -> tuple:
         """生成买卖信号"""
         buy = []
