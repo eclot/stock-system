@@ -805,6 +805,138 @@ async def stock_industry(symbol: str):
         return {"symbol": symbol, "industry": None}
 
 
+# ═══════════════════════════════════════════════
+#  8. 财务数据接口
+# ═══════════════════════════════════════════════
+
+@app.get("/api/financial/overview")
+async def financial_overview():
+    """财务数据概览"""
+    try:
+        from scripts.financial_data import get_financial_statistics, load_financial_data
+        stats = get_financial_statistics()
+        return stats
+    except Exception as e:
+        logger.error(f"财务概览接口错误: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/api/financial/stocks")
+async def financial_stocks(
+    sort_by: str = "pe",
+    ascending: bool = True,
+    top_n: int = 30,
+    industry: str = None,
+):
+    """财务数据排序列表"""
+    try:
+        from scripts.financial_data import load_financial_data
+        from scripts.data_loader import load_industry_mapping, get_industry, load_all_stocks_info
+
+        df = load_financial_data()
+        if df is None or len(df) == 0:
+            return {"error": "暂无财务数据", "total": 0, "stocks": []}
+
+        # 加载股票名称
+        name_map = {}
+        try:
+            info = load_all_stocks_info()
+            if info is not None:
+                name_map = dict(zip(info["symbol"], info.get("code_name", info["symbol"])))
+        except:
+            pass
+
+        # 加行业映射
+        mapping = load_industry_mapping()
+
+        records = []
+        for _, row in df.iterrows():
+            symbol = row["symbol"]
+            entry = {
+                "symbol": symbol,
+                "name": name_map.get(symbol, symbol),
+                "pe": row.get("pe"),
+                "roe": row.get("roe"),
+                "eps_ttm": row.get("eps_ttm"),
+                "gross_margin": row.get("gross_margin"),
+                "net_profit_margin": row.get("net_profit_margin"),
+                "net_profit_growth": row.get("net_profit_growth"),
+                "liability_to_asset": row.get("liability_to_asset"),
+                "current_ratio": row.get("current_ratio"),
+            }
+            if mapping:
+                entry["industry"] = get_industry(symbol, mapping) or ""
+            else:
+                entry["industry"] = ""
+            records.append(entry)
+
+        result_df = pd.DataFrame(records)
+
+        # 按行业筛选
+        if industry:
+            result_df = result_df[result_df["industry"] == industry]
+
+        # 按指标排序
+        if sort_by in result_df.columns:
+            result_df = result_df.sort_values(
+                sort_by, ascending=ascending, na_position="last"
+            )
+
+        result_df = result_df.head(top_n)
+
+        return {
+            "total": len(result_df),
+            "sort_by": sort_by,
+            "ascending": ascending,
+            "stocks": result_df.fillna("").to_dict("records"),
+        }
+    except Exception as e:
+        logger.error(f"财务列表接口错误: {e}")
+        return {"error": str(e), "stocks": []}
+
+
+@app.get("/api/financial/symbol/{symbol}")
+async def financial_symbol_detail(symbol: str):
+    """个股财务详情"""
+    try:
+        from scripts.financial_data import load_financial_data
+
+        df = load_financial_data()
+        if df is None or len(df) == 0:
+            return {"error": "暂无财务数据"}
+
+        match = df[df["symbol"] == symbol]
+        if len(match) == 0:
+            return {"error": f"未找到 {symbol} 的财务数据"}
+
+        row = match.iloc[0]
+        result = {}
+        for col in df.columns:
+            val = row[col]
+            if pd.isna(val):
+                result[col] = None
+            elif isinstance(val, (np.integer,)):
+                result[col] = int(val)
+            elif isinstance(val, (np.floating,)):
+                result[col] = round(float(val), 2)
+            else:
+                result[col] = val
+
+        # 行业信息
+        try:
+            from scripts.data_loader import load_industry_mapping, get_industry
+            mapping = load_industry_mapping()
+            if mapping:
+                result["industry"] = get_industry(symbol, mapping) or ""
+        except:
+            pass
+
+        return result
+    except Exception as e:
+        logger.error(f"个股财务详情错误: {e}")
+        return {"error": str(e)}
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

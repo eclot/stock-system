@@ -332,27 +332,25 @@ class ScoringEngine:
         return score, signal
     
     @staticmethod
-    def _score_pe(financial: dict, df: pd.DataFrame) -> float:
-        """PE历史分位评分 (0~10)，PE低=高分"""
+    def _score_pe(financial: dict, df: pd.DataFrame = None) -> float:
+        """PE估值评分 (0~10)，PE低=高分"""
         pe = financial.get("pe", None)
         if pe is None or pe <= 0:
-            return 5.0  # 未知，中性
-        
-        # 计算PE历史分位（从K线数据估算）
-        # 实际上需要历史PE数据，这里用PB/股价替代
-        close_values = df["close"].values
-        current_price = close_values[-1]
-        price_percentile = np.sum(close_values <= current_price) / len(close_values)
-        
-        # 股价在历史低位 = 好，高位 = 差
-        if price_percentile < 0.3:
-            return 8.0
-        elif price_percentile < 0.5:
-            return 6.0
-        elif price_percentile < 0.7:
-            return 4.0
+            return 5.0  # 未知或亏损，中性
+
+        # 基于PE绝对值评分
+        if pe <= 10:
+            return 10.0  # 极低估值
+        elif pe <= 15:
+            return 8.0   # 偏低估值
+        elif pe <= 25:
+            return 6.0   # 合理区间
+        elif pe <= 40:
+            return 4.0   # 偏高
+        elif pe <= 70:
+            return 2.0   # 高估
         else:
-            return 2.0
+            return 1.0   # 极度高估
     
     @staticmethod
     def _score_roe(financial: dict) -> float:

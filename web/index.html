@@ -276,6 +276,7 @@
         <div class="nav-item" data-page="backtest" onclick="showPage('backtest')">📋 策略回测</div>
         <div class="nav-item" data-page="monitor" onclick="showPage('monitor')">🔔 盘中监控</div>
         <div class="nav-item" data-page="hotspot" onclick="showPage('hotspot')">🔥 热点板块</div>
+        <div class="nav-item" data-page="financial" onclick="showPage('financial')">📊 财务数据</div>
     </div>
     
     <div class="main">
@@ -406,17 +407,21 @@
             <div id="backtestContent" class="loading">加载中...</div>
         </div>
         
-        <!-- 热点板块 -->
+        <!-- 🔥 热点板块 -->
         <div id="page-hotspot" class="page">
             <h2>🔥 行业板块排名</h2>
             <div class="toolbar">
-                <span style="display:flex;gap:4px;">
-                    <button class="period-btn active" data-sort="20d" onclick="switchSort('20d')">20日涨幅</button>
-                    <button class="period-btn" data-sort="5d" onclick="switchSort('5d')">5日涨幅</button>
-                </span>
-                <span class="hint" id="hotspotUpdated"></span>
+                <span class="period-btn active" data-sort="5d" onclick="switchSort('5d')">5日</span>
+                <span class="period-btn" data-sort="20d" onclick="switchSort('20d')">20日</span>
             </div>
-            <div id="hotspotList"></div>
+            <div id="hotspotList" class="loading">加载中...</div>
+            <div id="hotspotUpdated" style="color:#8B949E;font-size:12px;margin-top:8px;"></div>
+        </div>
+
+        <!-- 📊 财务数据 -->
+        <div id="page-financial" class="page">
+            <h2>📊 财务数据</h2>
+            <div id="financialContent"></div>
         </div>
     </div>
 </div>
@@ -640,6 +645,123 @@ function switchSort(sort) {
     loadHotspot();
 }
 
+// ── 财务数据 ──
+let financialSortBy = 'pe';
+let financialAsc = true;
+
+async function loadFinancial() {
+    const el = document.getElementById('financialContent');
+    el.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        // 先加载概览
+        const overviewRes = await fetch('/api/financial/overview');
+        const overview = await overviewRes.json();
+
+        // 加载列表
+        const url = `/api/financial/stocks?sort_by=${financialSortBy}&ascending=${financialAsc}&top_n=50`;
+        const listRes = await fetch(url);
+        const data = await listRes.json();
+
+        if (data.error) {
+            el.innerHTML = `<div style="color:#F85149;padding:20px;text-align:center;">${data.error}</div>`;
+            return;
+        }
+
+        let html = '';
+
+        // ── 概览卡片 ──
+        html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">';
+        html += `<div class="stat-card"><div class="stat-value">${overview.total || 0}</div><div class="stat-label">总记录</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${overview.stocks_with_pe || 0}</div><div class="stat-label">有PE数据</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${overview.stocks_with_roe || 0}</div><div class="stat-label">有ROE数据</div></div>`;
+        html += `<div class="stat-card"><div class="stat-value">${overview.stocks_with_eps || 0}</div><div class="stat-label">有EPS数据</div></div>`;
+        if (overview.latest_year && overview.latest_quarter) {
+            html += `<div class="stat-card"><div class="stat-value">${overview.latest_year}Q${overview.latest_quarter}</div><div class="stat-label">最新季度</div></div>`;
+        }
+        if (overview.pe_distribution) {
+            html += `<div class="stat-card"><div class="stat-value" style="font-size:11px;">PE<15:${overview.pe_distribution['0-15']}<br>15-30:${overview.pe_distribution['15-30']}<br>30-50:${overview.pe_distribution['30-50']}<br>50-100:${overview.pe_distribution['50-100']}</div><div class="stat-label">PE分布</div></div>`;
+        }
+        html += '</div>';
+
+        // ── 排序选择器 ──
+        const sortOptions = [
+            { key: 'pe', label: 'PE(低→高)' },
+            { key: 'roe', label: 'ROE(高→低)' },
+            { key: 'gross_margin', label: '毛利率(高→低)' },
+            { key: 'net_profit_growth', label: '净利增速(高→低)' },
+            { key: 'liability_to_asset', label: '负债率(低→高)' },
+            { key: 'eps_ttm', label: 'EPS(高→低)' },
+        ];
+        html += '<div class="toolbar" style="margin-bottom:12px;">';
+        html += '<span style="color:#8B949E;font-size:12px;margin-right:8px;">排序:</span>';
+        sortOptions.forEach(opt => {
+            const active = financialSortBy === opt.key ? 'active' : '';
+            html += `<span class="period-btn ${active}" data-sort="${opt.key}" onclick="switchFinancialSort('${opt.key}')">${opt.label}</span>`;
+        });
+        html += '</div>';
+
+        // ── 表格 ──
+        if (!data.stocks || data.stocks.length === 0) {
+            html += '<div style="color:#8B949E;padding:20px;text-align:center;">暂无数据</div>';
+        } else {
+            html += '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+                '<th>#</th><th>代码</th><th>名称</th><th>行业</th>' +
+                '<th title="市盈率(TTM)=收盘价/每股收益TTM。越低越便宜">PE</th>' +
+                '<th title="净资产收益率(ROE)=净利润/净资产。越高说明盈利能力越强">ROE(%)</th>' +
+                '<th title="每股收益(TTM) = 最近4个季度净利润/总股本">EPS(元)</th>' +
+                '<th title="毛利率 = (营收-营业成本)/营收。反映产品定价能力">毛利率(%)</th>' +
+                '<th title="净利率 = 净利润/营收。反映整体盈利效率">净利率(%)</th>' +
+                '<th title="净利润同比增长率。越高说明成长性越好">净利增速(%)</th>' +
+                '<th title="资产负债率 = 总负债/总资产。越低财务风险越小">负债率(%)</th>' +
+                '<th title="流动比率 = 流动资产/流动负债。>2较安全">流动比率</th>' +
+                '</tr></thead><tbody>';
+
+            data.stocks.forEach((r, i) => {
+                const fmt = (v, decimals=2) => {
+                    if (v === '' || v === null || v === undefined) return '—';
+                    const n = parseFloat(v);
+                    return isNaN(n) ? '—' : n.toFixed(decimals);
+                };
+                html += `<tr onclick="showPage('analysis');document.getElementById('stockSearch').value='${r.symbol}';searchStock();">
+                    <td>${i+1}</td>
+                    <td>${r.symbol}</td>
+                    <td>${r.name}</td>
+                    <td style="color:#8B949E;font-size:11px;">${r.industry || '-'}</td>
+                    <td style="color:${r.pe > 0 && r.pe <= 15 ? '#3FB950' : r.pe > 50 ? '#F85149' : '#E6C384'}">${fmt(r.pe)}</td>
+                    <td style="color:${r.roe >= 15 ? '#3FB950' : r.roe >= 5 ? '#E6C384' : '#F85149'}">${fmt(r.roe)}</td>
+                    <td>${fmt(r.eps_ttm)}</td>
+                    <td style="color:${r.gross_margin >= 30 ? '#3FB950' : '#E6C384'}">${fmt(r.gross_margin)}</td>
+                    <td>${fmt(r.net_profit_margin)}</td>
+                    <td style="color:${r.net_profit_growth >= 20 ? '#3FB950' : r.net_profit_growth < 0 ? '#F85149' : '#E6C384'}">${fmt(r.net_profit_growth)}</td>
+                    <td style="color:${r.liability_to_asset <= 50 ? '#3FB950' : r.liability_to_asset <= 70 ? '#E6C384' : '#F85149'}">${fmt(r.liability_to_asset)}</td>
+                    <td style="color:${r.current_ratio >= 2 ? '#3FB950' : r.current_ratio >= 1 ? '#E6C384' : '#F85149'}">${fmt(r.current_ratio)}</td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+
+        el.innerHTML = html;
+    } catch(e) {
+        el.innerHTML = `<div style="color:#F85149;padding:20px;text-align:center;">加载失败: ${e.message}</div>`;
+    }
+}
+
+function switchFinancialSort(key) {
+    if (financialSortBy === key) {
+        financialAsc = !financialAsc;  // 同字段切换升降序
+    } else {
+        financialSortBy = key;
+        // 默认排序方向
+        const descFields = ['roe', 'gross_margin', 'net_profit_growth', 'eps_ttm'];
+        financialAsc = !descFields.includes(key);
+    }
+    document.querySelectorAll('#page-financial .period-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.sort === key);
+    });
+    loadFinancial();
+}
+
 // ── 侧边栏 ──
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
@@ -679,6 +801,7 @@ function showPage(name) {
     if (name === 'backtest') loadBacktest();
     if (name === 'monitor') checkMonitor();
     if (name === 'hotspot') loadHotspot();
+    if (name === 'financial') loadFinancial();
 }
 
 // ── 缓存刷新 ──
