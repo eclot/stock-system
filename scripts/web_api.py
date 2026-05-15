@@ -122,6 +122,37 @@ async def _run_scan_in_thread(top_n: int = 200, mode: str = "classic") -> pd.Dat
 
 app = FastAPI(title="股票分析系统")
 
+@app.get("/api/score")
+async def api_score(symbol: str = Query(...)):
+    """获取单只股票评分"""
+    try:
+        from scripts.strategy_engine import ScoringEngine, load_stock_data
+        df = load_stock_data(symbol)
+        if df is None:
+            return {"error": f"股票 {symbol} 无数据", "score": 0, "signals": []}
+        # 同时返回经典和增强版评分
+        classic = ScoringEngine.score_stock(df, mode=ScoringEngine.SCORING_MODE_CLASSIC, symbol=symbol)
+        enhanced = ScoringEngine.score_stock(df, mode=ScoringEngine.SCORING_MODE_ENHANCED, symbol=symbol)
+        # 确保所有数值为float
+        for result in [classic, enhanced]:
+            if "score" in result:
+                result["score"] = float(result["score"])
+            if "latest" in result and result["latest"]:
+                for k, v in list(result["latest"].items()):
+                    if isinstance(v, (int, float)):
+                        result["latest"][k] = float(v) if not pd.isna(v) else None
+        return {
+            "symbol": symbol,
+            "name": classic.get("latest", {}).get("name", ""),
+            "mode": "all",
+            "classic": classic,
+            "enhanced": enhanced,
+        }
+    except Exception as e:
+        logger.error(f"/api/score error: {e}")
+        return {"error": str(e), "score": 0, "signals": []}
+
+
 @app.get("/api/scan/status")
 async def scan_status():
     """获取扫描状态（包含两种模式）"""
@@ -392,7 +423,7 @@ async def scan(top_n: int = Query(100, le=200), min_score: float = Query(0),
     cached = _get_cached_scan(mode)
     
     if cached is None and not _scan_status["running"]:
-        asyncio.ensure_future(_run_scan_in_thread(top_n=200, mode=mode))
+        asyncio.ensure_future(_run_scan_in_thread(top_n=1000, mode=mode))
         return {"scanning": True, "mode": mode, "total": 0, "results": [], "cached_at": None, "summary": {"strong_buy": 0, "watch": 0, "average_score": 0}}
     elif _scan_status["running"]:
         return {"scanning": True, "mode": mode, "total": 0, "results": [], "cached_at": None, "summary": {"strong_buy": 0, "watch": 0, "average_score": 0}}
@@ -409,9 +440,16 @@ async def scan(top_n: int = Query(100, le=200), min_score: float = Query(0),
             if isinstance(v, float) and (pd.isna(v) or np.isinf(v)):
                 rec[k] = None
     
+    # 真实扫描总数：已下载的股票总数
+    try:
+        from scripts.strategy_engine import get_available_symbols
+        real_total = len(get_available_symbols())
+    except:
+        real_total = len(results)
+    
     return {
         "total": len(filtered),
-        "scanned_total": len(results),
+        "scanned_total": real_total,
         "mode": mode,
         "results": records,
         "cached_at": cached_at,
@@ -429,7 +467,7 @@ async def refresh_scan(mode: str = Query("classic", regex="^(classic|enhanced)$"
     global _scan_status
     if _scan_status["running"]:
         return {"status": "scanning", "message": "正在扫描中，请稍候"}
-    asyncio.ensure_future(_run_scan_in_thread(top_n=200, mode=mode))
+    asyncio.ensure_future(_run_scan_in_thread(top_n=1000, mode=mode))
     return {"status": "started", "message": f"{'增强版' if mode == 'enhanced' else '经典版'}扫描已启动，请稍候刷新查看结果"}
 
 
@@ -629,7 +667,8 @@ async def api_portfolio():
 
 @app.post("/api/portfolio/buy")
 async def api_portfolio_buy(symbol: str = Query(""), name: str = Query(""),
-                             shares: int = Query(100), price: float = Query(0)):
+                             shares: int = Query(100), price: float = Query(0),
+                             position_type: str = Query("swing", regex="^(long|swing)$")):
     if price <= 0:
         # 自动获取最新价
         df = load_stock_data(symbol)
@@ -637,7 +676,7 @@ async def api_portfolio_buy(symbol: str = Query(""), name: str = Query(""),
             price = float(df.iloc[-1]["close"])
         else:
             return {"status": "error", "message": "无法获取价格"}
-    return portfolio_buy(symbol, name, shares, price)
+    return portfolio_buy(symbol, name, shares, price, position_type)
 
 @app.post("/api/portfolio/sell")
 async def api_portfolio_sell(symbol: str = Query(""), name: str = Query(""),

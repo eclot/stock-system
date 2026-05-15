@@ -702,9 +702,14 @@ def scan_all_stocks(top_n: int = 50, min_score: float = 60,
             "signals": ",".join(result["signals"]),
         }
         
+        # 行业归属（双模式统一添加）
+        try:
+            entry["industry"] = get_industry(symbol, load_industry_mapping())
+        except:
+            entry["industry"] = ""
+        
         # 增强版附加字段
         if mode == ScoringEngine.SCORING_MODE_ENHANCED:
-            entry["industry"] = result.get("industry", "")
             entry["mode"] = "enhanced"
             for k, v in result["details"].items():
                 if k not in ("ma_trend", "rsi_position", "volume_ratio", "macd_signal",

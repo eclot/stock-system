@@ -301,7 +301,7 @@
             <div class="table-wrap">
                 <table>
                     <thead><tr>
-                        <th>#</th><th>代码</th><th>名称</th>
+                        <th>#</th><th>代码</th><th>名称</th><th>行业</th>
                         <th>评分</th><th>现价</th><th>趋势</th><th>RSI</th><th>信号</th><th></th>
                     </tr></thead>
                     <tbody id="scanResults"></tbody>
@@ -522,6 +522,7 @@ async function loadByIndustry() {
                 <td>${i+1}</td>
                 <td>${r.symbol}</td>
                 <td>${r.name}</td>
+                <td style="color:#8B949E;font-size:11px;">${r.industry || '-'}</td>
                 <td class="${cls}">${(r.score || 0).toFixed(1)}</td>
                 <td>${(r.price || 0).toFixed(2)}</td>
                 <td>${(r.ma_trend || 0).toFixed(1)}</td>
@@ -532,7 +533,7 @@ async function loadByIndustry() {
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
     }
     industryLoading = false;
 }
@@ -649,14 +650,14 @@ async function refreshCache() {
 // ── 扫描 ──
 async function loadScan() {
     const tbody = document.getElementById('scanResults');
-    tbody.innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="loading">加载中...</td></tr>';
     try {
         const res = await fetch(`/api/scan?top_n=50&mode=${currentMode}`);
         const data = await res.json();
         
         // 正在扫描中
         if (data.scanning) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#8B949E;padding:20px;">🔍 全市场扫描进行中（约1-2分钟），请稍候...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#8B949E;padding:20px;">🔍 全市场扫描进行中（约1-2分钟），请稍候...</td></tr>';
             document.getElementById('cachedAt').textContent = '⏳ 扫描中...';
             document.getElementById('scanStats').textContent = '⏳ 等待扫描完成';
             // 每5秒检查状态
@@ -691,6 +692,7 @@ async function loadScan() {
                 <td>${i+1}</td>
                 <td>${r.symbol}</td>
                 <td>${r.name}</td>
+                <td style="color:#8B949E;font-size:11px;">${r.industry || '-'}</td>
                 <td class="${cls}">${r.score.toFixed(1)}</td>
                 <td>${(r.price || 0).toFixed(2)}</td>
                 <td>${(r.ma_trend || 0).toFixed(1)}</td>
@@ -701,7 +703,7 @@ async function loadScan() {
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = `><td colspan="8" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="color:#F85149;padding:20px;text-align:center;">加载失败</td></tr>`;
     }
 }
 

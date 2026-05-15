@@ -108,6 +108,7 @@ def portfolio_status(current_prices: dict = None) -> dict:
             "symbol": symbol,
             "name": info.get("name", symbol),
             "industry": industry,
+            "position_type": info.get("position_type", "swing"),
             "shares": info["shares"],
             "avg_price": round(info["avg_price"], 2),
             "current_price": round(price, 2),
@@ -132,8 +133,13 @@ def portfolio_status(current_prices: dict = None) -> dict:
         "created_at": pf.get("created_at", ""),
     }
 
-def portfolio_buy(symbol: str, name: str, shares: int, price: float) -> dict:
-    """买入"""
+def portfolio_buy(symbol: str, name: str, shares: int, price: float,
+                    position_type: str = "swing") -> dict:
+    """买入
+    position_type: "long" (长期仓位) 或 "swing" (波段仓位)
+    """
+    if position_type not in ("long", "swing"):
+        position_type = "swing"
     if shares <= 0:
         return {"status": "error", "message": "数量必须大于0"}
     pf = _load_portfolio()
@@ -150,15 +156,17 @@ def portfolio_buy(symbol: str, name: str, shares: int, price: float) -> dict:
             "shares": total_shares,
             "avg_price": round(total_cost / total_shares, 2),
             "name": name,
+            "position_type": old.get("position_type", "swing"),
         }
     else:
-        pf["holdings"][symbol] = {"shares": shares, "avg_price": round(price, 2), "name": name}
+        pf["holdings"][symbol] = {"shares": shares, "avg_price": round(price, 2), "name": name, "position_type": position_type}
     
     pf["transactions"].append({
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "symbol": symbol,
         "name": name,
         "action": "buy",
+        "position_type": position_type,
         "shares": shares,
         "price": round(price, 2),
         "total": round(cost, 2),

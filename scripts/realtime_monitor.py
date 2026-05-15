@@ -48,6 +48,8 @@ def load_watchlist_symbols():
     if os.path.exists(WATCHLIST_FILE):
         with open(WATCHLIST_FILE) as f:
             data = json.load(f)
+            if isinstance(data, list):
+                return [item["symbol"] for item in data]
             return [item["symbol"] for item in data.get("items", [])]
     return []
 
